@@ -7,7 +7,6 @@ ZUNO_SETUP_CHANNELS(
   ZUNO_SWITCH_BINARY(getter3, setter3),
   ZUNO_SWITCH_BINARY(getter4, setter4));
 
-
 const byte portStart = 9;
 const byte numPorts = 4;
 const byte ledPin = 13;
@@ -17,39 +16,46 @@ const byte ledPin = 13;
 // 1 - close (momentary press start, another press stop)
 // 2 - open (momentary press start, another press stop)
 // 3 - open step (moving while pressed, stops on release)
-
-// we keep millis() when button was pressed or 0 if its released
-unsigned long values[numPorts] = {0, 0, 0, 0};
 const unsigned long keepPressedMs[numPorts] = {1500, 500, 500, 1500};
 
-// 0 is released, 255 is pressed
-//byte getter(byte idx) {
-//  return values[idx] > 0 ? 255 : 0;
-//}
+int pressedButton = -1;
+unsigned long whenToReleaseMs = 0;
 
-void setter(byte idx, byte value) {
-  values[idx] = (value > 0 ? millis() : 0);
-  digitalWrite(portStart + idx, value > 0 ? HIGH : LOW);
+void releaseButtonNow() {
+  if (pressedButton == -1) return;
+
+  digitalWrite(portStart + pressedButton, LOW);
   // use led pin for debug
-  digitalWrite(ledPin, value > 0 ? HIGH : LOW);
+  digitalWrite(ledPin, LOW);
+
+  pressedButton = -1;
+  whenToReleaseMs = 0;
 }
 
-void autoRelease(byte idx) {
-  if (values[idx] == 0) return; // released already
+void checkAndReleaseButton() {
+  if (pressedButton == -1) return;
 
   unsigned long curTime = millis();
 
-  if (curTime < values[idx]) { // time wrapped, lets re-set it to current time
-    values[idx] = curTime;
-  }
-
-  if (values[idx] + keepPressedMs[idx] < curTime)
-    setter(idx, 0);
+  // check 1) too early to release 2) time overlow
+  if (curTime < whenToReleaseMs || curTime > whenToReleaseMs + 10000)
+    return;
+      
+  releaseButtonNow();
+  
 }
 
-void autoReleaseAll() {
-  for (int i = 0; i < numPorts; ++i)
-    autoRelease(i);
+void pressButton(byte idx) {
+
+  releaseButtonNow();
+
+  digitalWrite(portStart + idx, HIGH);
+  // use led pin for debug
+  digitalWrite(ledPin, HIGH);
+
+  pressedButton = idx;
+  whenToReleaseMs = millis() + keepPressedMs[idx];
+
 }
 
 // z-wave bindings
@@ -59,7 +65,7 @@ byte getter1() {
 }
 
 void setter1(byte value) {
-  setter(0, 255);
+  pressButton(0);
 }
 
 byte getter2() {
@@ -67,7 +73,7 @@ byte getter2() {
 }
 
 void setter2(byte value) {
-  setter(1, 255);
+  pressButton(1);
 }
 
 byte getter3() {
@@ -75,7 +81,7 @@ byte getter3() {
 }
 
 void setter3(byte value) {
-  setter(2, 255);
+  pressButton(2);
 }
 
 byte getter4() {
@@ -83,7 +89,7 @@ byte getter4() {
 }
 
 void setter4(byte value) {
-  setter(3, 255);
+  pressButton(3);
 }
 
 
@@ -96,11 +102,11 @@ void setup() {
   for (int i = 0; i < numPorts; ++i)
   {
     pinMode(portStart + i, OUTPUT);
-    setter(i, 0);
+    digitalWrite(portStart + i, LOW);
   }
 }
 
 // the loop function runs over and over again forever
 void loop() {
-  autoReleaseAll();
+  checkAndReleaseButton();
 }
