@@ -13,20 +13,19 @@ const byte numPorts = 4;
 const byte ledPin = 13;
 
 // port mapping
-// 0 - close (momentary press start, another press stop)
-// 1 - close step (moving while pressed, stops on release)
-// 2 - open step (moving while pressed, stops on release)
-// 3 - open (momentary press start, another press stop)
+// 0 - close step (moving while pressed, stops on release)
+// 1 - close (momentary press start, another press stop)
+// 2 - open (momentary press start, another press stop)
+// 3 - open step (moving while pressed, stops on release)
 
 // we keep millis() when button was pressed or 0 if its released
 unsigned long values[numPorts] = {0, 0, 0, 0};
-const unsigned long keepPressedMs[numPorts] = {1000, 2000, 2000, 1000};
+const unsigned long keepPressedMs[numPorts] = {1500, 500, 500, 1500};
 
 // 0 is released, 255 is pressed
-// we alware return 0, so buttons seems always released
-byte getter(byte idx) {
-  return values[idx] > 0 ? 255 : 0;
-}
+//byte getter(byte idx) {
+//  return values[idx] > 0 ? 255 : 0;
+//}
 
 void setter(byte idx, byte value) {
   values[idx] = (value > 0 ? millis() : 0);
@@ -40,16 +39,15 @@ void autoRelease(byte idx) {
 
   unsigned long curTime = millis();
 
-  if (curTime < values[idx]) // time wrapped, lets re-set it to current time
-  {
+  if (curTime < values[idx]) { // time wrapped, lets re-set it to current time
     values[idx] = curTime;
   }
+
   if (values[idx] + keepPressedMs[idx] < curTime)
     setter(idx, 0);
 }
 
-void autoReleaseAll()
-{
+void autoReleaseAll() {
   for (int i = 0; i < numPorts; ++i)
     autoRelease(i);
 }
@@ -57,7 +55,7 @@ void autoReleaseAll()
 // z-wave bindings
 
 byte getter1() {
-  return 0;
+  return 0; // We already return fake "released" button
 }
 
 void setter1(byte value) {
@@ -65,7 +63,7 @@ void setter1(byte value) {
 }
 
 byte getter2() {
-  return 0;
+  return 0; // We already return fake "released" button
 }
 
 void setter2(byte value) {
@@ -73,7 +71,7 @@ void setter2(byte value) {
 }
 
 byte getter3() {
-  return 0;
+  return 0; // We already return fake "released" button
 }
 
 void setter3(byte value) {
@@ -81,7 +79,7 @@ void setter3(byte value) {
 }
 
 byte getter4() {
-  return 0;
+  return 0; // We already return fake "released" button
 }
 
 void setter4(byte value) {
@@ -104,6 +102,5 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
-  delay(20); // no need to check too often
   autoReleaseAll();
 }
