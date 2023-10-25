@@ -1,5 +1,7 @@
 
 
+ZUNO_ENABLE(SKETCH_VERSION=0x0103)
+
 // each channel behaves like a button
 ZUNO_SETUP_CHANNELS(
   ZUNO_SWITCH_BINARY(getter1, setter1),
@@ -17,15 +19,38 @@ const byte ledPin = 13;
 // 2 - open (momentary press start, another press stop)
 // 3 - open step (moving while pressed, stops on release)
 // 4 - stop
-const unsigned long keepPressedMs[numPorts] = {1500, 500, 500, 1500, 200};
 const byte portToPinMap[numPorts] = {9, 10, 11, 12, 14};
 
+// enum for parameter numbers
+enum {
+  KEEP_PRESSED_PORT_0 = 64,
+  KEEP_PRESSED_PORT_1,
+  KEEP_PRESSED_PORT_2,
+  KEEP_PRESSED_PORT_3,
+  KEEP_PRESSED_PORT_4
+};
+
+// Device's configuration parametrs definitions
+ZUNO_SETUP_CONFIGPARAMETERS(
+  ZUNO_CONFIG_PARAMETER("Pressed time 0 (close step)", 20, 3000, 1500),
+  ZUNO_CONFIG_PARAMETER("Pressed time 1 (close)", 20, 3000, 500),
+  ZUNO_CONFIG_PARAMETER("Pressed time 2 (open)", 20, 3000, 500),
+  ZUNO_CONFIG_PARAMETER("Pressed time 3 (open step)", 20, 3000, 1500),
+  ZUNO_CONFIG_PARAMETER("Pressed time 4 (stop)", 20, 3000, 200));
+
+ZUNO_SETUP_CFGPARAMETER_HANDLER(configParameterChanged);
+
+unsigned long keepPressedMs[numPorts] = {0};
 int pressedButton = -1;
 unsigned long whenToReleaseMs = 0;
 
 bool isButtonPressed(byte idx)
 {
-  return (pressedButton == idx);
+   // report seems to create issues with latest z-uno 2 boards
+   // so we just always return false there
+  return false;
+  
+  //return (pressedButton == idx);
 }
 
 void releaseButtonNow() {
@@ -41,7 +66,8 @@ void releaseButtonNow() {
   whenToReleaseMs = 0;
 
   // send report (fixme - how to figure out whether it's unsolicited release?
-  zunoSendReport(wasPressed + 1);
+  // report seems to create issues with latest z-uno 2 boards
+  //zunoSendReport(wasPressed + 1);
 }
 
 void checkAndReleaseButton() {
@@ -112,6 +138,15 @@ void setter5(byte value) {
   pressButton(4);
 }
 
+void configParameterChanged(uint8_t param, uint32_t value) {
+
+  if (param >= KEEP_PRESSED_PORT_0 + numPorts)
+    return;
+
+  byte idx = param - KEEP_PRESSED_PORT_0;
+  keepPressedMs[idx] = value;
+}
+
 // the setup function runs once when you press reset or power the board
 void setup() {
 
@@ -122,7 +157,13 @@ void setup() {
   {
     pinMode(portToPinMap[i], OUTPUT);
     digitalWrite(portToPinMap[i], LOW);
+
+    // set default press duration
+    keepPressedMs[i] = zunoLoadCFGParam(KEEP_PRESSED_PORT_0 + i);
   }
+
+
+
 }
 
 // the loop function runs over and over again forever
