@@ -1,7 +1,9 @@
 
 
-ZUNO_ENABLE(SKETCH_VERSION=0x0103)
-
+ZUNO_ENABLE(
+  SKETCH_VERSION=0x0103
+  MODERN_MULTICHANNEL);     // No clustering, the first channel is mapped to NIF only
+                     
 // each channel behaves like a button
 ZUNO_SETUP_CHANNELS(
   ZUNO_SWITCH_BINARY(getter1, setter1),
