@@ -1,26 +1,26 @@
 
+ZUNO_ENABLE(SKETCH_VERSION=0x0103);
 
-ZUNO_ENABLE(
-  SKETCH_VERSION=0x0103
-  MODERN_MULTICHANNEL);     // No clustering, the first channel is mapped to NIF only
-                     
 // each channel behaves like a button
 ZUNO_SETUP_CHANNELS(
-  ZUNO_SWITCH_BINARY(getter1, setter1),
-  ZUNO_SWITCH_BINARY(getter2, setter2),
-  ZUNO_SWITCH_BINARY(getter3, setter3),
-  ZUNO_SWITCH_BINARY(getter4, setter4),
-  ZUNO_SWITCH_BINARY(getter5, setter5));
+  ZUNO_SWITCH_BINARY(getterCloseStep, setterCloseStep),
+  ZUNO_SWITCH_BINARY(getterClose, setterClose),
+  ZUNO_SWITCH_BINARY(getterOpen, setterOpen),
+  ZUNO_SWITCH_BINARY(getterOpenStep, setterOpenStep),
+  ZUNO_SWITCH_BINARY(getterStop, setterStop));
 
 const byte numPorts = 5;
 const byte ledPin = 13;
 
 // port mapping
-// 0 - close step (moving while pressed, stops on release)
-// 1 - close (momentary press start, another press stop)
-// 2 - open (momentary press start, another press stop)
-// 3 - open step (moving while pressed, stops on release)
-// 4 - stop
+enum {
+  PORT_CLOSE_STEP = 0, // 0 - close step (moving while pressed, stops on release)
+  PORT_CLOSE, // 1 - close (momentary press start, another press stop)
+  PORT_OPEN, // 2 - open (momentary press start, another press stop)
+  PORT_OPEN_STEP, // 3 - open step (moving while pressed, stops on release)
+  PORT_STOP // 4 - stop
+};
+
 const byte portToPinMap[numPorts] = {9, 10, 11, 12, 14};
 
 // enum for parameter numbers
@@ -29,29 +29,32 @@ enum {
   KEEP_PRESSED_PORT_1,
   KEEP_PRESSED_PORT_2,
   KEEP_PRESSED_PORT_3,
-  KEEP_PRESSED_PORT_4
+  KEEP_PRESSED_PORT_4,
+  USE_STEPS_FOR_CONT
 };
 
 // Device's configuration parametrs definitions
 ZUNO_SETUP_CONFIGPARAMETERS(
-  ZUNO_CONFIG_PARAMETER("Pressed time 0 (close step)", 20, 3000, 1500),
-  ZUNO_CONFIG_PARAMETER("Pressed time 1 (close)", 20, 3000, 500),
-  ZUNO_CONFIG_PARAMETER("Pressed time 2 (open)", 20, 3000, 500),
-  ZUNO_CONFIG_PARAMETER("Pressed time 3 (open step)", 20, 3000, 1500),
-  ZUNO_CONFIG_PARAMETER("Pressed time 4 (stop)", 20, 3000, 200));
+  ZUNO_CONFIG_PARAMETER("Pressed time 0 (close step)", 20, 60000, 1500),
+  ZUNO_CONFIG_PARAMETER("Pressed time 1 (close)", 20, 60000, 500),
+  ZUNO_CONFIG_PARAMETER("Pressed time 2 (open)", 20, 60000, 500),
+  ZUNO_CONFIG_PARAMETER("Pressed time 3 (open step)", 20, 60000, 1500),
+  ZUNO_CONFIG_PARAMETER("Pressed time 4 (stop)", 20, 60000, 200),
+  ZUNO_CONFIG_PARAMETER_1B("Use steps for cont move", 0, 1, 0));
 
 ZUNO_SETUP_CFGPARAMETER_HANDLER(configParameterChanged);
 
 unsigned long keepPressedMs[numPorts] = {0};
 int pressedButton = -1;
 unsigned long whenToReleaseMs = 0;
+bool useStepsForCont = false;
 
 bool isButtonPressed(byte idx)
 {
-   // report seems to create issues with latest z-uno 2 boards
-   // so we just always return false there
+  // report seems to create issues with latest z-uno 2 boards
+  // so we just always return false there
   return false;
-  
+
   //return (pressedButton == idx);
 }
 
@@ -85,7 +88,7 @@ void checkAndReleaseButton() {
 
 }
 
-void pressButton(byte idx) {
+void pressButton(byte idx, int keepPressedMs) {
 
   releaseButtonNow();
 
@@ -94,57 +97,65 @@ void pressButton(byte idx) {
   digitalWrite(ledPin, HIGH);
 
   pressedButton = idx;
-  whenToReleaseMs = millis() + keepPressedMs[idx];
+  whenToReleaseMs = millis() + keepPressedMs;
 
 }
 
 // z-wave bindings
 
-byte getter1() {
-  return isButtonPressed(0);
+byte getterCloseStep() {
+  return isButtonPressed(PORT_CLOSE_STEP);
 }
 
-void setter1(byte value) {
-  pressButton(0);
+void setterCloseStep(byte value) {
+  pressButton(PORT_CLOSE_STEP, keepPressedMs[PORT_CLOSE_STEP]);
 }
 
-byte getter2() {
-  return isButtonPressed(1);
+byte getterClose() {
+  return isButtonPressed(PORT_CLOSE);
 }
 
-void setter2(byte value) {
-  pressButton(1);
+void setterClose(byte value) {
+  byte port = PORT_CLOSE;
+  if (useStepsForCont) port = PORT_CLOSE_STEP;
+
+  pressButton(port, keepPressedMs[PORT_CLOSE]);
 }
 
-byte getter3() {
-  return isButtonPressed(2);
+byte getterOpen() {
+  return isButtonPressed(PORT_OPEN);
 }
 
-void setter3(byte value) {
-  pressButton(2);
+void setterOpen(byte value) {
+  byte port = PORT_OPEN;
+  if (useStepsForCont) port = PORT_OPEN_STEP;
+
+  pressButton(port, keepPressedMs[PORT_OPEN]);
 }
 
-byte getter4() {
-  return isButtonPressed(3);
+byte getterOpenStep() {
+  return isButtonPressed(PORT_OPEN_STEP);
 }
 
-void setter4(byte value) {
-  pressButton(3);
+void setterOpenStep(byte value) {
+  pressButton(PORT_OPEN_STEP, keepPressedMs[PORT_OPEN_STEP]);
 }
 
-byte getter5() {
-  return isButtonPressed(4);
+byte getterStop() {
+  return isButtonPressed(PORT_STOP);
 }
 
-void setter5(byte value) {
-  pressButton(4);
+void setterStop(byte value) {
+  pressButton(PORT_STOP, keepPressedMs[PORT_STOP]);
 }
 
 void configParameterChanged(uint8_t param, uint32_t value) {
 
-  if (param >= KEEP_PRESSED_PORT_0 + numPorts)
+  if (param >= KEEP_PRESSED_PORT_0 + numPorts) {
+    if (param == USE_STEPS_FOR_CONT)
+      useStepsForCont = (param != 0);
     return;
-
+  }
   byte idx = param - KEEP_PRESSED_PORT_0;
   keepPressedMs[idx] = value;
 }
@@ -164,7 +175,7 @@ void setup() {
     keepPressedMs[i] = zunoLoadCFGParam(KEEP_PRESSED_PORT_0 + i);
   }
 
-
+  useStepsForCont = zunoLoadCFGParam(USE_STEPS_FOR_CONT);
 
 }
 
