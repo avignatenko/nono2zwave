@@ -40,7 +40,7 @@ ZUNO_SETUP_CONFIGPARAMETERS(
   ZUNO_CONFIG_PARAMETER("Pressed time 2 (open)", 20, 60000, 500),
   ZUNO_CONFIG_PARAMETER("Pressed time 3 (open step)", 20, 60000, 1500),
   ZUNO_CONFIG_PARAMETER("Pressed time 4 (stop)", 20, 60000, 200),
-  ZUNO_CONFIG_PARAMETER_1B("Use steps for cont move", 0, 1, 0));
+  ZUNO_CONFIG_PARAMETER_1B("Use steps for continuous movement", 0, 1, 0));
 
 ZUNO_SETUP_CFGPARAMETER_HANDLER(configParameterChanged);
 
